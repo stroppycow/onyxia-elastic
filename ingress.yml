@@ -6,7 +6,7 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   rules:
-    - host: {{NODE_NAME}}.datascience.kube.insee.fr
+    - host: {{NODE_NAME}}.{{DOMAIN_NAME}}
       http:
         paths:
           - path: "/"
@@ -18,5 +18,5 @@ spec:
                   number: 9200
   tls:
     - hosts:
-      - {{NODE_NAME}}.datascience.kube.insee.fr
+      - {{NODE_NAME}}.{{DOMAIN_NAME}}
       secretName: {{CLUSTER_NAME}}-tls
