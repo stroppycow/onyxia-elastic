@@ -328,7 +328,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "rm archive in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "rm archive in pod node {i}".format(i=str(i)), True, True)
         logger.info("Archive supprimée dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la suppression de l'archive dans le pod node {i}: {err}".format(i=str(i), err=e))
@@ -363,7 +363,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "mkdir certs in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "mkdir certs in pod node {i}".format(i=str(i)), True, True)
         logger.info("Dossier certs créé dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la création du dossier certs dans le pod node {i}: {err}".format(i=str(i), err=e))
@@ -384,7 +384,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "cp elasticsearch.yml in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "cp elasticsearch.yml in pod node {i}".format(i=str(i)), True, True)
         logger.info("elasticsearch.yml copié dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la copie de elasticsearch.yml dans le pod node {i}: {err}".format(i=str(i), err=e))
@@ -404,7 +404,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "cp transport keystore in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "cp transport keystore in pod node {i}".format(i=str(i)), True, True)
         logger.info("Keystore transport copié pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la copie du keystore transport pour node {i}: {err}".format(i=str(i), err=e))
@@ -424,7 +424,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "cp http keystore in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "cp http keystore in pod node {i}".format(i=str(i)), True, True)
         logger.info("Keystore http copié pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la copie du keystore http pour node {i}: {err}".format(i=str(i), err=e))
@@ -444,7 +444,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "cp ca p12 in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "cp ca p12 in pod node {i}".format(i=str(i)), True, True)
         logger.info("CA keystore (p12) copié pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la copie du CA keystore pour node {i}: {err}".format(i=str(i), err=e))
@@ -464,7 +464,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "cp ca crt in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "cp ca crt in pod node {i}".format(i=str(i)), True, True)
         logger.info("CA crt copié pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la copie du CA crt pour node {i}: {err}".format(i=str(i), err=e))
@@ -484,7 +484,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "rm temp node dir in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "rm temp node dir in pod node {i}".format(i=str(i)), True, True)
         logger.info("Dossier temporaire supprimé dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant la suppression du dossier temporaire dans le pod node {i}: {err}".format(i=str(i), err=e))
