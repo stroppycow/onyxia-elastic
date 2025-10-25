@@ -169,7 +169,7 @@ def generate_password(length=16):
     password = ''.join(secrets.choice(characters) for _ in range(length))
     return password
 
-def download_file(url: str, save_dir: str, filename: str) -> None:
+def download_file(url: str, save_dir: Path, filename: str) -> None:
     # Crée le dossier s’il n’existe pas
     os.makedirs(save_dir, exist_ok=True)
     
@@ -942,9 +942,10 @@ for i in range(1, 4):
         logger.error("Impossible de créer le dossier {folder}".format(folder=str(output_pack.resolve())))
         logger.error(e, stack_info=True, exc_info=True)
         raise RuntimeError("Erreur lors de la création d'un dossier") from e
+    
+    from_file = Path(dict_config['config_directory']) / 'elasticsearch.yml'
+    to_file = output_pack / 'elasticsearch.yml'
     try:
-        from_file = Path(dict_config['config_directory']) / 'elasticsearch.yml'
-        to_file = output_pack / 'elasticsearch.yml'
         logger.info("Copie du fichier elasticsearch.yml vers {to}".format(to=str(to_file.resolve())))
         shutil.copyfile(from_file, to_file)
         logger.info("Copie terminée: elasticsearch.yml -> {to}".format(to=str(to_file.resolve())))
@@ -953,9 +954,9 @@ for i in range(1, 4):
         logger.error(e, stack_info=True, exc_info=True)
         raise RuntimeError("Erreur lors de la copie d'un fichier") from e
 
+    from_file = certs_folder / ('transport-node-' + str(i) + '.p12')
+    to_file = output_pack / ('transport-node-' + str(i) + '.p12')
     try:
-        from_file = certs_folder / ('transport-node-' + str(i) + '.p12')
-        to_file = output_pack / ('transport-node-' + str(i) + '.p12')
         logger.info("Copie du keystore transport pour node {i}".format(i=str(i)))
         shutil.copyfile(from_file, to_file)
         logger.info("Copie terminée: {f}".format(f=str(to_file.resolve())))
@@ -964,9 +965,9 @@ for i in range(1, 4):
         logger.error(e, stack_info=True, exc_info=True)
         raise RuntimeError("Erreur lors de la copie d'un fichier") from e
 
+    from_file = certs_folder / ('http-node-' + str(i) + '.p12')
+    to_file = output_pack / ('http-node-' + str(i) + '.p12')
     try:
-        from_file = certs_folder / ('http-node-' + str(i) + '.p12')
-        to_file = output_pack / ('http-node-' + str(i) + '.p12')
         logger.info("Copie du keystore http pour node {i}".format(i=str(i)))
         shutil.copyfile(from_file, to_file)
         logger.info("Copie terminée: {f}".format(f=str(to_file.resolve())))
@@ -975,9 +976,9 @@ for i in range(1, 4):
         logger.error(e, stack_info=True, exc_info=True)
         raise RuntimeError("Erreur lors de la copie d'un fichier") from e
 
-    try:
-        from_file =   certs_folder /  'elastic-stack-ca.p12'
-        to_file = output_pack / 'elastic-stack-ca.p12'
+    from_file =   certs_folder /  'elastic-stack-ca.p12'
+    to_file = output_pack / 'elastic-stack-ca.p12'
+    try:       
         logger.info("Copie du CA keystore vers node_{i}".format(i=str(i)))
         shutil.copyfile(from_file, to_file)
         logger.info("Copie terminée: elastic-stack-ca.p12 -> {to}".format(to=str(to_file.resolve())))
@@ -1210,9 +1211,11 @@ result = subprocess.run(
 )
 logger.info("Keystore Kibana configuré")
 
+
+from_file = Path(dict_config['config_directory']) / 'kibana.yml'
+to_file = Path(elastic_download_folder) / 'kibana-{version}-linux-x86_64'.format(version=dict_config['versionKibana']) / 'kibana-{version}'.format(version=dict_config['versionKibana']) / 'config' / 'kibana.yml'
+
 try:
-    from_file = Path(dict_config['config_directory']) / 'kibana.yml'
-    to_file = Path(elastic_download_folder) / 'kibana-{version}-linux-x86_64'.format(version=dict_config['versionKibana']) / 'kibana-{version}'.format(version=dict_config['versionKibana']) / 'config' / 'kibana.yml'
     logger.info("Copie du fichier de configuration Kibana vers {to}".format(to=str(to_file.resolve())))
     shutil.copyfile(from_file, to_file)
     logger.info("Copie Kibana terminée")
