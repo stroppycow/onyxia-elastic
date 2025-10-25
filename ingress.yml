@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{NODE_NAME}}
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  rules:
+    - host: {{NODE_NAME}}.datascience.kube.insee.fr
+      http:
+        paths:
+          - path: "/"
+            pathType: Prefix
+            backend:
+              service:
+                name: {{NODE_NAME}}
+                port:
+                  number: 9200
+  tls:
+    - hosts:
+      - {{NODE_NAME}}.datascience.kube.insee.fr
+      secretName: {{CLUSTER_NAME}}-tls
