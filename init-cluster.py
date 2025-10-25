@@ -225,31 +225,55 @@ def prepare_elastic(tache):
     with open(home / 'template_kube' / ('node_' + str(i)) / 'secrets.yml') as f:
         doc = yaml.safe_load(f)
     res = create_from_yaml(client.ApiClient(), yaml_objects=[doc], namespace=dict_config['kubernetes_namespace'])
+    if not res:
+        logger.error("create_from_yaml returned no result for secrets of node {i}".format(i=str(i)))
+        raise RuntimeError("Echec application manifest secrets pour node {i}".format(i=str(i)))
     logger.info("Secret appliqué pour le node {i}".format(i=str(i)))
 
     with open(home / 'template_kube' / ('node_' + str(i)) / 'service.yml') as f:
         doc = yaml.safe_load(f)
     res = create_from_yaml(client.ApiClient(), yaml_objects=[doc], namespace=dict_config['kubernetes_namespace'])
+    if not res:
+        logger.error("create_from_yaml returned no result for service of node {i}".format(i=str(i)))
+        raise RuntimeError("Echec application manifest service pour node {i}".format(i=str(i)))
     logger.info("Service appliqué pour le node {i}".format(i=str(i)))
 
     with open(home / 'template_kube' / ('node_' + str(i)) / 'ingress.yml') as f:
         doc = yaml.safe_load(f)
     res = create_from_yaml(client.ApiClient(), yaml_objects=[doc], namespace=dict_config['kubernetes_namespace'])
+    if not res:
+        logger.error("create_from_yaml returned no result for ingress of node {i}".format(i=str(i)))
+        raise RuntimeError("Echec application manifest ingress pour node {i}".format(i=str(i)))
     logger.info("Ingress appliqué pour le node {i}".format(i=str(i)))
 
     with open(home / 'template_kube' / ('node_' + str(i)) / 'StatefulSet.yml') as f:
         doc = yaml.safe_load(f)
     res = create_from_yaml(client.ApiClient(), yaml_objects=[doc], namespace=dict_config['kubernetes_namespace'])
+    if not res:
+        logger.error("create_from_yaml returned no result for statefulset of node {i}".format(i=str(i)))
+        raise RuntimeError("Echec application manifest statefulset pour node {i}".format(i=str(i)))
     logger.info("StatefulSet appliqué pour le node {i}".format(i=str(i)))
 
     logger.info("Début de la création du Pod pour le noeud {i}".format(i=str(i)))
     res = wait_pod_ready(namespace= dict_config['kubernetes_namespace'], statefulset_name= (dict_config['cluster_name'] + '-node-' + str(i)) , client = client, timeout=60, interval=1)
     logger.info("Pod prêt pour le noeud {i} : pod={pod}, container={container}".format(i=str(i), pod=res[0], container=res[1]))
 
+    def _check_stream_response(resp, context):
+        out = resp if isinstance(resp, str) else (resp.decode() if isinstance(resp, bytes) else str(resp))
+        out_str = out.strip()
+        logger.info("{ctx} output: {o}".format(ctx=context, o=out_str[:1000]))  # truncate long output
+        low = out_str.lower()
+        if not out_str:
+            logger.error("{ctx} returned empty output".format(ctx=context))
+            raise RuntimeError("{ctx} failed: empty output".format(ctx=context))
+        if any(k in low for k in ("error", "failed", "no such", "not found", "permission denied")):
+            logger.error("{ctx} reported error: {o}".format(ctx=context, o=out_str))
+            raise RuntimeError("{ctx} failed: {o}".format(ctx=context, o=out_str))
+        return out_str
+
     try:
         core_v1 = client.CoreV1Api()
         logger.info("Téléchargement d'ElasticSearch dans le pod {pod} (node {i})".format(pod=res[0], i=str(i)))
-        # Execute command
         resp = stream.stream(
             core_v1.connect_get_namespaced_pod_exec,
             res[0],
@@ -261,15 +285,15 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "wget in pod node {i}".format(i=str(i)))
         logger.info("Téléchargement dans le pod terminé pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant le téléchargement dans le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant le téléchargement dans le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
         logger.info("Extraction de l'archive ElasticSearch dans le pod {pod} (node {i})".format(pod=res[0], i=str(i)))
-        # Execute command
         resp = stream.stream(
             core_v1.connect_get_namespaced_pod_exec,
             res[0],
@@ -281,15 +305,15 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "tar extract in pod node {i}".format(i=str(i)))
         logger.info("Extraction terminée dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant l'extraction dans le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant l'extraction dans le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
         logger.info("Suppression de l'archive dans le pod {pod} pour node {i}".format(pod=res[0], i=str(i)))
-        # Execute command
         resp = stream.stream(
             core_v1.connect_get_namespaced_pod_exec,
             res[0],
@@ -301,10 +325,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "rm archive in pod node {i}".format(i=str(i)))
         logger.info("Archive supprimée dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la suppression de l'archive dans le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la suppression de l'archive dans le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         logger.info("Copie des fichiers locaux vers le pod {pod} pour node {i}".format(pod=res[0], i=str(i)))
@@ -318,13 +343,12 @@ def prepare_elastic(tache):
         )
         logger.info("Copie des fichiers vers le pod terminée pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la copie des fichiers vers le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la copie des fichiers vers le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
         logger.info("Création du dossier certs dans l'installation ElasticSearch du pod {pod} pour node {i}".format(pod=res[0], i=str(i)))
-        # Execute command
         resp = stream.stream(
             core_v1.connect_get_namespaced_pod_exec,
             res[0],
@@ -336,10 +360,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "mkdir certs in pod node {i}".format(i=str(i)))
         logger.info("Dossier certs créé dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la création du dossier certs dans le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la création du dossier certs dans le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     # Copy configuration and keystores into the elastic installation in the pod
     try:
@@ -356,10 +381,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "cp elasticsearch.yml in pod node {i}".format(i=str(i)))
         logger.info("elasticsearch.yml copié dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la copie de elasticsearch.yml dans le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la copie de elasticsearch.yml dans le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -375,10 +401,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "cp transport keystore in pod node {i}".format(i=str(i)))
         logger.info("Keystore transport copié pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la copie du keystore transport pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la copie du keystore transport pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -394,10 +421,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "cp http keystore in pod node {i}".format(i=str(i)))
         logger.info("Keystore http copié pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la copie du keystore http pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la copie du keystore http pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -413,10 +441,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "cp ca p12 in pod node {i}".format(i=str(i)))
         logger.info("CA keystore (p12) copié pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la copie du CA keystore pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la copie du CA keystore pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -432,10 +461,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "cp ca crt in pod node {i}".format(i=str(i)))
         logger.info("CA crt copié pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la copie du CA crt pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la copie du CA crt pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -451,10 +481,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "rm temp node dir in pod node {i}".format(i=str(i)))
         logger.info("Dossier temporaire supprimé dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la suppression du dossier temporaire dans le pod node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la suppression du dossier temporaire dans le pod node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -470,10 +501,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "create elasticsearch-keystore in pod node {i}".format(i=str(i)))
         logger.info("Elasticsearch keystore créé pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant la création du keystore pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant la création du keystore pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -489,10 +521,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "add bootstrap.password in pod node {i}".format(i=str(i)))
         logger.info("bootstrap.password ajouté au keystore pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant l'ajout de bootstrap.password pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant l'ajout de bootstrap.password pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -508,10 +541,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "add transport keystore pwd in pod node {i}".format(i=str(i)))
         logger.info("Password transport keystore ajouté pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant l'ajout du password transport keystore pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant l'ajout du password transport keystore pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -527,10 +561,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "add truststore pwd in pod node {i}".format(i=str(i)))
         logger.info("Password truststore ajouté pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant l'ajout du truststore password pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant l'ajout du truststore password pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
     try:
         core_v1 = client.CoreV1Api()
@@ -546,10 +581,11 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
+        _check_stream_response(resp, "add http keystore pwd in pod node {i}".format(i=str(i)))
         logger.info("Password http keystore ajouté pour node {i}".format(i=str(i)))
     except Exception as e:
-        logger.error("Erreur pendant l'ajout du http keystore password pour node {i}".format(i=str(i)))
-        raise e
+        logger.error("Erreur pendant l'ajout du http keystore password pour node {i}: {err}".format(i=str(i), err=e))
+        raise
 
 def run_elastic(tache):
     try:
@@ -558,7 +594,7 @@ def run_elastic(tache):
         version = dict_config['versionElastic']
         res = wait_pod_ready(namespace= dict_config['kubernetes_namespace'], statefulset_name= (dict_config['cluster_name'] + '-node-' + str(i)) , client = client, timeout=60, interval=1)
         core_v1 = client.CoreV1Api()
-        # Execute command
+        logger.info("Démarrage d'elasticsearch dans le pod {pod} (node {i})".format(pod=res[0], i=str(i)))
         resp = stream.stream(
             core_v1.connect_get_namespaced_pod_exec,
             res[0],
@@ -570,9 +606,15 @@ def run_elastic(tache):
             stdout=True,
             tty=False
         )
+        # check start output
+        out = resp if isinstance(resp, str) else (resp.decode() if isinstance(resp, bytes) else str(resp))
+        logger.info("Start elastic output (truncated): {o}".format(o=out.strip()[:1000]))
+        if not out.strip() or any(k in out.lower() for k in ("error","failed","permission denied","cannot")):
+            logger.error("Elasticsearch start failed for node {i}: {o}".format(i=str(i), o=out))
+            raise RuntimeError("Echec démarrage elasticsearch pour node {i}".format(i=str(i)))
         return resp
     except Exception as e:
-        raise e
+        raise
 
 
 parser = argparse.ArgumentParser(description="Script d'initialisation d'un cluster ElasticSearch sur un cluster Kubernetes")
@@ -764,10 +806,10 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-if not result.stderr == '':
-    logger.error("Impossible de générer le certificat {certif}".format(certif=output_certif_ca))
+if result.returncode != 0 or result.stderr:
+    logger.error("Impossible de générer le certificat {certif} - rc:{rc} stderr:{stderr}".format(certif=output_certif_ca, rc=result.returncode, stderr=result.stderr.strip()))
     raise RuntimeError("Impossible de générer le certificat {certif}".format(certif=output_certif_ca))
-logger.info("Certificat CA généré: {certif}".format(certif=output_certif_ca))
+logger.info("Certificat CA généré: {certif} stdout:{out}".format(certif=output_certif_ca, out=(result.stdout.strip()[:1000])))
 
 logger.info("Extraction de la clé publique du CA")
 result = subprocess.run(
@@ -786,10 +828,10 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-if not result.stderr == '':
-    logger.error("Impossible de récupérer la clé publique du certificat {certif}".format(certif=output_certif_ca))
+if result.returncode != 0 or result.stderr:
+    logger.error("Impossible de récupérer la clé publique du certificat {certif} - rc:{rc} stderr:{stderr}".format(certif=output_certif_ca, rc=result.returncode, stderr=result.stderr.strip()))
     raise RuntimeError("Impossible de récupérer la clé publique du certificat {certif}".format(certif=output_certif_ca))
-logger.info("Clé publique CA extraite")
+logger.info("Clé publique CA extraite stdout:{out}".format(out=result.stdout.strip()[:1000]))
 
 logger.info("Extraction de la clé privée du CA")
 result = subprocess.run(
@@ -808,8 +850,8 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-if not result.stderr == '':
-    logger.error("Impossible de récupérer la clé privée du certificat {certif}".format(certif=output_certif_ca))
+if result.returncode != 0 or result.stderr:
+    logger.error("Impossible de récupérer la clé privée du certificat {certif} - rc:{rc} stderr:{stderr}".format(certif=output_certif_ca, rc=result.returncode, stderr=result.stderr.strip()))
     raise RuntimeError("Impossible de récupérer la clé privée du certificat {certif}".format(certif=output_certif_ca))
 logger.info("Clé privée CA extraite")
 
@@ -825,8 +867,8 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-if not result.stderr == '':
-    logger.error("Impossible de générer la clé privée du certificat TLS de l'Ingress")
+if result.returncode != 0 or result.stderr:
+    logger.error("Impossible de générer la clé privée du certificat TLS de l'Ingress - rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
     raise RuntimeError("Impossible de générer la clé privée du certificat TLS de l'Ingress")
 logger.info("Clé TLS générée")
 
@@ -848,8 +890,8 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-if not result.stderr == '':
-    logger.error("Impossible de créer une requête de signature pour le certificat TLS de l'Ingress")
+if result.returncode != 0 or result.stderr:
+    logger.error("Impossible de créer une requête de signature pour le certificat TLS de l'Ingress - rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
     raise RuntimeError("Impossible de créer une requête de signature pour le certificat TLS de l'Ingress")
 logger.info("CSR TLS créée")
 
@@ -875,6 +917,9 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
+if result.returncode != 0 or result.stderr:
+    logger.error("Erreur pendant la signature de la CSR TLS - rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
+    raise RuntimeError("Erreur pendant la signature de la CSR TLS")
 logger.info("Certificat TLS pour ingress généré: {f}".format(f=str((certs_folder / 'tls.crt').resolve())))
 
 for i in range(1,4):
@@ -900,8 +945,8 @@ for i in range(1,4):
         capture_output=True, 
         text=True 
     )
-    if not result.stderr == '':
-        logger.error("Impossible de générer le certificat {certif}".format(certif=output_certif))
+    if result.returncode != 0 or result.stderr:
+        logger.error("Impossible de générer le certificat {certif} - rc:{rc} stderr:{stderr}".format(certif=output_certif, rc=result.returncode, stderr=result.stderr.strip()))
         raise RuntimeError("Impossible de générer le certificat {certif}".format(certif=output_certif))
     logger.info("Certificat transport généré pour le noeud {i}".format(i=str(i)))
 
@@ -927,8 +972,8 @@ for i in range(1,4):
         capture_output=True, 
         text=True 
     )
-    if not result.stderr == '':
-        logger.error("Impossible de générer le certificat {certif}".format(certif=output_certif))
+    if result.returncode != 0 or result.stderr:
+        logger.error("Impossible de générer le certificat {certif} - rc:{rc} stderr:{stderr}".format(certif=output_certif, rc=result.returncode, stderr=result.stderr.strip()))
         raise RuntimeError("Impossible de générer le certificat {certif}".format(certif=output_certif))
     logger.info("Certificat http généré pour le noeud {i}".format(i=str(i)))
 
@@ -1196,7 +1241,13 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-logger.info("Ajout du mot de passe elasticsearch dans le keystore Kibana")
+if result.returncode != 0 or result.stderr:
+    logger.error("Kibana keystore creation failed: rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
+    raise RuntimeError("Echec creation kibana keystore")
+logger.info("Kibana keystore created stdout:{out}".format(out=result.stdout.strip()[:1000]))
+
+
+logger.info("Ajout du mot de passe kibana_system dans le keystore Kibana")
 result = subprocess.run(
     [
         '/bin/sh',
@@ -1209,7 +1260,29 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-logger.info("Keystore Kibana configuré")
+if result.returncode != 0 or result.stderr:
+    logger.error("Adding password to kibana keystore failed: rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
+    raise RuntimeError("Echec ajout mot de passe kibana_system keystore")
+logger.info("Ajout du mot de passe dans le keystore Kibana OK stdout:{out}".format(out=result.stdout.strip()[:1000]))
+
+
+logger.info("Ajout de l'adresse d'ElasticSearch le keystore Kibana")
+result = subprocess.run(
+    [
+        '/bin/sh',
+        '-c',
+        'echo -n \'{hosts}\' | {keystore} add elasticsearch.hosts --stdin'.format(
+            hosts = 'https://{cluster_name}-node-1.{domain}'.format(cluster_name=dict_config['cluster_name'], domain=dict_config['ingressDomain']),
+            keystore = str(kibana_keystore_path.resolve())
+        )
+    ],    
+    capture_output=True, 
+    text=True 
+)
+if result.returncode != 0 or result.stderr:
+    logger.error("Adding password to kibana keystore failed: rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
+    raise RuntimeError("Echec ajout mot de passe kibana_system keystore")
+logger.info("Ajout du mot de passe dans le keystore Kibana OK stdout:{out}".format(out=result.stdout.strip()[:1000]))
 
 
 from_file = Path(dict_config['config_directory']) / 'kibana.yml'
@@ -1236,4 +1309,7 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-logger.info("Commande de démarrage Kibana exécutée")
+if result.returncode != 0:
+    logger.error("Lancement de Kibana echoué rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
+    raise RuntimeError("Echec démarrage Kibana")
+logger.info("Commande de démarrage Kibana exécutée (rc:{rc})".format(rc=result.returncode))
