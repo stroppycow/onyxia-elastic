@@ -1,0 +1,81 @@
+# ======================== Elasticsearch Configuration =========================
+#
+# NOTE: Elasticsearch comes with reasonable defaults for most settings.
+#       Before you set out to tweak and tune the configuration, make sure you
+#       understand what are you trying to accomplish and the consequences.
+#
+# The primary way of configuring a node is via this file. This template lists
+# the most important settings you may want to configure for a production cluster.
+#
+# Please consult the documentation for further information on configuration options:
+# https://www.elastic.co/guide/en/elasticsearch/reference/index.html
+#
+# ---------------------------------- Cluster -----------------------------------
+#
+# Use a descriptive name for your cluster:
+#
+cluster.name: ${CLUSTER_NAME}
+#
+# ------------------------------------ Node ------------------------------------
+#
+# Use a descriptive name for the node:
+#
+node.name: ${NODE_NAME}
+#
+# Add custom attributes to the node:
+#
+node.attr.rack: ${NODE_NAME}
+#
+# ----------------------------------- Paths ------------------------------------
+#
+# Path to directory where to store the data (separate multiple locations by comma):
+#
+path.data: /home/onyxia/work/data
+#
+# Path to log files:
+#
+path.logs: /home/onyxia/work/logs
+#
+# ----------------------------------- Memory -----------------------------------
+#
+# Lock the memory on startup:
+#
+bootstrap.memory_lock: true
+#
+# Make sure that the heap size is set to about half the memory available
+# on the system and that the owner of the process is allowed to use this
+# limit.
+#
+# Elasticsearch performs poorly when the system is swapping the memory.
+#
+# ---------------------------------- Network -----------------------------------
+#
+network.host: 0.0.0.0
+http.port: 9200
+
+transport.host: 0.0.0.0
+transport.port: 9300
+
+
+# Enable security features
+xpack.security.enabled: true
+
+# --- Transport layer (node-to-node communication) ---
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.transport.ssl.client_authentication: required
+xpack.security.transport.ssl.keystore.path: ${ELASTIC_TRANSPORT_KEYSTORE_PATH}
+xpack.security.transport.ssl.truststore.path: ${ELASTIC_TRANSPORT_KEYSTORE_PATH}
+
+# (Optional) HTTP layer encryption (clients → nodes)
+xpack.security.http.ssl.enabled: true
+xpack.security.http.ssl.keystore.path: ${ELASTIC_HTTP_KEYSTORE_PATH}
+xpack.security.http.ssl.certificate_authorities: ${ELASTIC_HTTP_CA_PATH}
+
+# --------------------------------- Discovery ----------------------------------
+#
+discovery.seed_hosts: ${SEED_HOST}
+
+cluster.initial_master_nodes: ${NODES_LIST}
+node.roles: [ "master", "data", "ingest" ]
+

@@ -1,0 +1,10 @@
+server.port: 5601
+server.host: "0.0.0.0"
+elasticsearch.username: "kibana_system"
+xpack.fleet.enabled: false
+xpack.uptime.enabled: false
+xpack.canvas.enabled: false
+xpack.apm.enabled: false
+xpack.infra.enabled: false
+xpack.monitoring.enabled: false
+telemetry.enabled: false

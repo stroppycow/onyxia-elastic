@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{NODE_NAME}}
+  labels:
+    app: {{NODE_NAME}}
+spec:
+  replicas: 1
+  serviceName: "{{NODE_NAME}}" 
+  selector:
+    matchLabels:
+      app: {{NODE_NAME}}
+  template:
+    metadata:
+      labels:
+        app: {{NODE_NAME}}
+    spec:
+      securityContext:
+        fsGroup: 100
+      containers:
+        - name: {{NODE_NAME}}
+          image: {{IMAGE}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            runAsNonRoot: true
+            runAsUser: 1000          
+            runAsGroup: 100        
+            fsGroup: 100
+            capabilities:
+              drop:
+                - ALL
+          command: ["/bin/sh", "-c", "while sleep 3600; do :; done"]
+          envFrom:
+            - secretRef:
+                name: {{SECRET}}
+          volumeMounts:
+            - name: {{PVC_DATA}}
+              mountPath: /home/onyxia/work/data
+            - name: {{PVC_LOGS}}
+              mountPath: /home/onyxia/work/logs
+            - name: {{PVC_BIN}}
+              mountPath: /home/onyxia/work/bin
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "1Gi"
+              ephemeral-storage: "100Mi"
+            limits:
+              cpu: "{{CPU}}"
+              memory: "{{MEMORY}}"
+              ephemeral-storage: "2Gi"
+  volumeClaimTemplates:
+    - metadata:
+        name: {{PVC_BIN}}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 3Gi
+    - metadata:
+        name: {{PVC_LOGS}}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2Gi
+    - metadata:
+        name: {{PVC_DATA}}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{PERSISTENT_VOLUME}}

@@ -1,0 +1,11 @@
+clusterName: 'test-theo-elastic'
+downloadPrefix: "https://artifacts.elastic.co/downloads"
+versionElastic: "9.2.0"
+versionKibana: "9.2.0"
+ingressDomain: "kub.sspcloud.fr"
+image: "inseefrlab/onyxia-python-minimal:py3.13.7"
+limits:
+  cpu: "400m"
+  memory: "4Gi"
+  persistentStorage: "8Gi"
+
