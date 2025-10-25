@@ -917,7 +917,7 @@ result = subprocess.run(
     capture_output=True, 
     text=True 
 )
-if result.returncode != 0 or result.stderr:
+if result.returncode != 0:
     logger.error("Erreur pendant la signature de la CSR TLS - rc:{rc} stderr:{stderr}".format(rc=result.returncode, stderr=result.stderr.strip()))
     raise RuntimeError("Erreur pendant la signature de la CSR TLS")
 logger.info("Certificat TLS pour ingress généré: {f}".format(f=str((certs_folder / 'tls.crt').resolve())))
