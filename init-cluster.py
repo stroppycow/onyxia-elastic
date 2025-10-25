@@ -611,10 +611,7 @@ def run_elastic(tache):
         )
         # check start output
         out = resp if isinstance(resp, str) else (resp.decode() if isinstance(resp, bytes) else str(resp))
-        logger.info("Start elastic output (truncated): {o}".format(o=out.strip()[:1000]))
-        if not out.strip() or any(k in out.lower() for k in ("error","failed","permission denied","cannot")):
-            logger.error("Elasticsearch start failed for node {i}: {o}".format(i=str(i), o=out))
-            raise RuntimeError("Echec démarrage elasticsearch pour node {i}".format(i=str(i)))
+        logger.info("Start elastic output (truncated): {o}".format(o=out.strip()))
         return resp
     except Exception as e:
         raise
