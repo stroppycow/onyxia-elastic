@@ -1229,7 +1229,7 @@ result = subprocess.run(
     [
         '/bin/sh',
         '-c',
-        'nohup {kibana_bin} /home/onyxia/work/kibana.log 2>&1 &'.format(
+        'nohup {kibana_bin} > /home/onyxia/work/kibana.log 2>&1 &'.format(
             kibana_bin=str(kibana_server_path.resolve())
         )
     ],    
