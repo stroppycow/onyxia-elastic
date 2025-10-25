@@ -258,7 +258,7 @@ def prepare_elastic(tache):
     res = wait_pod_ready(namespace= dict_config['kubernetes_namespace'], statefulset_name= (dict_config['cluster_name'] + '-node-' + str(i)) , client = client, timeout=60, interval=1)
     logger.info("Pod prêt pour le noeud {i} : pod={pod}, container={container}".format(i=str(i), pod=res[0], container=res[1]))
 
-    def _check_stream_response(resp, context, check_empty: bool = False, allow_empty: bool = false):
+    def _check_stream_response(resp, context, check_empty: bool = False, allow_empty: bool = False):
         out = resp if isinstance(resp, str) else (resp.decode() if isinstance(resp, bytes) else str(resp))
         out_str = out.strip()
         logger.info("{ctx} output: {o}".format(ctx=context, o=out_str[:1000]))  # truncate long output
