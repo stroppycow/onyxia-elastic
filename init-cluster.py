@@ -258,12 +258,15 @@ def prepare_elastic(tache):
     res = wait_pod_ready(namespace= dict_config['kubernetes_namespace'], statefulset_name= (dict_config['cluster_name'] + '-node-' + str(i)) , client = client, timeout=60, interval=1)
     logger.info("Pod prêt pour le noeud {i} : pod={pod}, container={container}".format(i=str(i), pod=res[0], container=res[1]))
 
-    def _check_stream_response(resp, context):
+    def _check_stream_response(resp, context, check_empty: bool = False, allow_empty: bool = false):
         out = resp if isinstance(resp, str) else (resp.decode() if isinstance(resp, bytes) else str(resp))
         out_str = out.strip()
         logger.info("{ctx} output: {o}".format(ctx=context, o=out_str[:1000]))  # truncate long output
         low = out_str.lower()
-        if not out_str:
+        if check_empty and out_str:
+            logger.error("{ctx} returned non-mpty output".format(ctx=context))
+            raise RuntimeError("{ctx} failed: non-empty output".format(ctx=context))
+        if not allow_empty and not out_str:
             logger.error("{ctx} returned empty output".format(ctx=context))
             raise RuntimeError("{ctx} failed: empty output".format(ctx=context))
         if any(k in low for k in ("error", "failed", "no such", "not found", "permission denied")):
@@ -305,7 +308,7 @@ def prepare_elastic(tache):
             stdout=True,
             tty=False
         )
-        _check_stream_response(resp, "tar extract in pod node {i}".format(i=str(i)))
+        _check_stream_response(resp, "tar extract in pod node {i}".format(i=str(i)), True, True)
         logger.info("Extraction terminée dans le pod pour node {i}".format(i=str(i)))
     except Exception as e:
         logger.error("Erreur pendant l'extraction dans le pod node {i}: {err}".format(i=str(i), err=e))
